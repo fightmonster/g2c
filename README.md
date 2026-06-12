@@ -32,10 +32,10 @@ g2c --version     # 应输出 1.0.1
 ### 1. 一行配置并验证 Gerrit
 
 ```bash
-g2c setup --url http://localhost:8080 --username luojun --password '<http-password>'
+g2c setup --url http://gerrit.rongxun.com:8080/r --username jun.luo --password '<Gerrit HTTP Password>'
 ```
 
-凭据写入 `~/.gerrit2claw/config.json`(目录 0700,文件 0600),并且必须成功连接 Gerrit 才会写入。`--ssh-url` 可省略,会根据 HTTP URL 和用户名自动推导,例如 `http://gerrit.rongxun.com:8080/r` + `jun.luo` 推导为 `ssh://jun.luo@gerrit.rongxun.com:29418`。
+凭据写入 `~/.gerrit2claw/config.json`(目录 0700,文件 0600),并且必须成功连接 Gerrit 才会写入。`--password` 使用 Gerrit HTTP Password,不是网页登录密码。`--ssh-url` 可省略,会根据 HTTP URL 和用户名自动推导,例如 `http://gerrit.rongxun.com:8080/r` + `jun.luo` 推导为 `ssh://jun.luo@gerrit.rongxun.com:29418`。
 
 ### 2. 看一眼状态
 
