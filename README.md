@@ -32,10 +32,10 @@ g2c --version     # 应输出 1.0.1
 ### 1. 一行配置并验证 Gerrit
 
 ```bash
-g2c setup --url http://gerrit.rongxun.com:8080/r --username jun.luo --password '<Gerrit HTTP Password>'
+g2c setup --url <gerrit-http-url> --username <gerrit-username> --password '<Gerrit HTTP Password>'
 ```
 
-凭据写入 `~/.gerrit2claw/config.json`(目录 0700,文件 0600),并且必须成功连接 Gerrit 才会写入。`--password` 使用 Gerrit HTTP Password,不是网页登录密码。`--ssh-url` 可省略,会根据 HTTP URL 和用户名自动推导,例如 `http://gerrit.rongxun.com:8080/r` + `jun.luo` 推导为 `ssh://jun.luo@gerrit.rongxun.com:29418`。
+凭据写入 `~/.gerrit2claw/config.json`(目录 0700,文件 0600),并且必须成功连接 Gerrit 才会写入。`--password` 使用 Gerrit HTTP Password,不是网页登录密码。`--ssh-url` 可省略,会根据 HTTP URL 和用户名自动推导,例如 `<gerrit-http-url>` + `<gerrit-username>` 推导为 `ssh://<gerrit-username>@<gerrit-host>:29418`。
 
 ### 2. 看一眼状态
 
@@ -223,7 +223,7 @@ g2c
 
 | 字段 | 说明 |
 |---|---|
-| `GERRIT_HTTP_URL` | Gerrit HTTP 入口,如 `http://localhost:8080` |
+| `GERRIT_HTTP_URL` | Gerrit HTTP 入口,如 `<gerrit-http-url>` |
 | `GERRIT_USERNAME` | Gerrit 用户名 |
 | `GERRIT_PASSWORD` | Gerrit HTTP 密码 |
 
@@ -237,8 +237,8 @@ g2c
 ### 环境变量(覆盖文件配置)
 
 ```bash
-export GERRIT_HTTP_URL=http://localhost:8080
-export GERRIT_USERNAME=luojun
+export GERRIT_HTTP_URL=<gerrit-http-url>
+export GERRIT_USERNAME=<gerrit-username>
 export GERRIT_PASSWORD='<http-password>'
 ```
 
@@ -271,7 +271,7 @@ npm audit            # 依赖安全审计
 ```bash
 npm pack
 # → g2c-1.0.1.tgz
-tar tzf /Users/luojun/workspace/gerrit-cli/g2c-1.0.1.tgz | head
+tar tzf <path-to-g2c-1.0.1.tgz> | head
 # 应包含: package/dist/* + package/docs/HELP.md + package/package.json + package/README.md
 # 不应包含: src/、testfiles/、node_modules/、.git/
 ```
@@ -279,7 +279,7 @@ tar tzf /Users/luojun/workspace/gerrit-cli/g2c-1.0.1.tgz | head
 全路径本地安装验证:
 
 ```bash
-npm install -g /Users/luojun/workspace/gerrit-cli/g2c-1.0.1.tgz
+npm install -g <path-to-g2c-1.0.1.tgz>
 g2c --version
 ```
 
