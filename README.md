@@ -31,6 +31,8 @@ g2c --version     # 应输出 1.0.1
 
 ### 1. 一行配置并验证 Gerrit
 
+先在 Gerrit Web UI 生成 HTTP Credentials: `Settings -> HTTP Credentials`，复制生成的 HTTP Password。
+
 ```bash
 g2c setup --url <gerrit-http-url> --username <gerrit-username> --password '<Gerrit HTTP Password>'
 ```
