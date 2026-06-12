@@ -21,7 +21,7 @@
 只从 GitHub `g2c` 发布包安装:
 
 ```bash
-npm install -g https://github.com/fightmonster/g2c/releases/download/v1.0.1/g2c-1.0.1.tgz
+npm install -g https://github.com/fightmonster/g2c/releases/download/v1.0.1/g2c.tgz
 g2c --version     # 应输出 1.0.1
 ```
 
@@ -270,8 +270,8 @@ npm audit            # 依赖安全审计
 
 ```bash
 npm pack
-# → g2c-1.0.1.tgz
-tar tzf <path-to-g2c-1.0.1.tgz> | head
+# npm 默认生成 g2c-<version>.tgz；发布到 GitHub 时统一改名为 g2c.tgz
+tar tzf <path-to-g2c.tgz> | head
 # 应包含: package/dist/* + package/docs/HELP.md + package/package.json + package/README.md
 # 不应包含: src/、testfiles/、node_modules/、.git/
 ```
@@ -279,7 +279,7 @@ tar tzf <path-to-g2c-1.0.1.tgz> | head
 全路径本地安装验证:
 
 ```bash
-npm install -g <path-to-g2c-1.0.1.tgz>
+npm install -g <path-to-g2c.tgz>
 g2c --version
 ```
 
