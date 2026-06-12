@@ -21,7 +21,7 @@
 只从 GitHub `g2c` 发布包安装:
 
 ```bash
-npm install -g https://github.com/fightmonster/g2c/releases/download/v1.0.1/g2c.tgz
+npm install -g https://github.com/fightmonster/g2c/releases/latest/download/g2c.tgz
 g2c --version     # 应输出 1.0.1
 ```
 
