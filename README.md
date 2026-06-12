@@ -18,45 +18,11 @@
 
 ## 安装
 
-### 方式 A:从 npm 全局安装(发布后)
+只从 GitHub `g2c` 发布包安装:
 
 ```bash
-npm install -g g2c
+npm install -g https://github.com/fightmonster/g2c/releases/download/v1.0.1/g2c-1.0.1.tgz
 g2c --version     # 应输出 1.0.1
-```
-
-### 方式 B:从本地源码安装(开发或未发布)
-
-```bash
-git clone <this-repo>
-cd gerrit-cli
-npm install
-npm run build
-npm install -g .
-```
-
-### 方式 C:从本机 tgz 全路径安装
-
-```bash
-npm install -g /Users/luojun/workspace/gerrit-cli/g2c-1.0.1.tgz
-g2c --version     # 应输出 1.0.1
-```
-
-### 方式 D:从 GitHub Release tgz 安装
-
-```bash
-curl -L -o /tmp/g2c-1.0.1.tgz https://github.com/fightmonster/g2c/releases/download/v1.0.1/g2c-1.0.1.tgz
-npm install -g /tmp/g2c-1.0.1.tgz
-g2c --version
-```
-
-### 方式 E:不安装,直接跑
-
-```bash
-git clone <this-repo>
-cd gerrit-cli
-npm install
-npm run dev -- auth status
 ```
 
 ---
