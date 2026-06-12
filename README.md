@@ -2,7 +2,7 @@
 
 > Gerrit-to-Claw CLI — Gerrit review 自动化命令行工具,支持人与 AI Agent 两种使用方式。
 
-[![npm version](https://img.shields.io/badge/npm-1.0.0-blue.svg)](https://www.npmjs.com/package/g2c)
+[![npm version](https://img.shields.io/badge/npm-1.0.1-blue.svg)](https://www.npmjs.com/package/g2c)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org)
 [![license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 
@@ -22,7 +22,7 @@
 
 ```bash
 npm install -g g2c
-g2c --version     # 应输出 1.0.0
+g2c --version     # 应输出 1.0.1
 ```
 
 ### 方式 B:从本地源码安装(开发或未发布)
@@ -35,7 +35,22 @@ npm run build
 npm install -g .
 ```
 
-### 方式 C:不安装,直接跑
+### 方式 C:从本机 tgz 全路径安装
+
+```bash
+npm install -g /Users/luojun/workspace/gerrit-cli/g2c-1.0.1.tgz
+g2c --version     # 应输出 1.0.1
+```
+
+### 方式 D:从 GitHub Release tgz 安装
+
+```bash
+curl -L -o /tmp/g2c-1.0.1.tgz https://github.com/fightmonster/g2c/releases/download/v1.0.1/g2c-1.0.1.tgz
+npm install -g /tmp/g2c-1.0.1.tgz
+g2c --version
+```
+
+### 方式 E:不安装,直接跑
 
 ```bash
 git clone <this-repo>
@@ -48,19 +63,13 @@ npm run dev -- auth status
 
 ## 快速上手
 
-### 1. 登录 Gerrit
+### 1. 一行配置并验证 Gerrit
 
 ```bash
-g2c auth login \
-  --url http://localhost:8080 \
-  --ssh-url ssh://luojun@localhost:29418 \
-  --username luojun \
-  --password '<http-password>' \
-  --repo /Users/luojun/workspace/<your-repo> \
-  --branch master
+g2c setup --url http://localhost:8080 --username luojun --password '<http-password>'
 ```
 
-凭据写入 `~/.gerrit2claw/config.json`(目录 0700,文件 0600)。环境变量(`GERRIT_HTTP_URL` / `GERRIT_USERNAME` / `GERRIT_PASSWORD`)会覆盖文件配置。
+凭据写入 `~/.gerrit2claw/config.json`(目录 0700,文件 0600),并且必须成功连接 Gerrit 才会写入。`--ssh-url` 可省略,会根据 HTTP URL 和用户名自动推导,例如 `http://gerrit.rongxun.com:8080/r` + `jun.luo` 推导为 `ssh://jun.luo@gerrit.rongxun.com:29418`。
 
 ### 2. 看一眼状态
 
@@ -257,10 +266,7 @@ g2c
 | 字段 | 说明 |
 |---|---|
 | `GERRIT_SSH_URL` | SSH 入口,`g2c` 不直接用,记录备查 |
-| `G2C_DEFAULT_REPO` | 本地 Git 仓库默认路径,`repo` 子命令用 |
-| `G2C_DEFAULT_BRANCH` | 默认目标分支,实际场景几乎都用 change 自带 branch |
-
-> `auth login` 和 `config set` **只写**用户级 `~/.gerrit2claw/config.json`,不会污染项目仓库。
+> `setup`、`auth login` 和 `config set` **只写**用户级 `~/.gerrit2claw/config.json`,不会污染项目仓库。默认本地仓库和默认分支配置已废弃;操作本地仓库时显式传 `--repo`,分支用 `list-branch` 查询或由 change 信息决定。
 
 ### 环境变量(覆盖文件配置)
 
@@ -268,8 +274,6 @@ g2c
 export GERRIT_HTTP_URL=http://localhost:8080
 export GERRIT_USERNAME=luojun
 export GERRIT_PASSWORD='<http-password>'
-export G2C_DEFAULT_REPO=/Users/luojun/workspace/<repo>
-export G2C_DEFAULT_BRANCH=master
 ```
 
 ---
@@ -290,7 +294,7 @@ npm run dev -- auth status      # tsx 跑 src,改完即生效
 ```bash
 npm run typecheck    # tsc --noEmit
 npm run build        # tsc → dist/
-npm test             # vitest,24 个测试
+npm test             # vitest,27 个测试
 npm audit            # 依赖安全审计
 ```
 
@@ -300,10 +304,17 @@ npm audit            # 依赖安全审计
 
 ```bash
 npm pack
-# → g2c-1.0.0.tgz
-tar tzf g2c-1.0.0.tgz | head
+# → g2c-1.0.1.tgz
+tar tzf /Users/luojun/workspace/gerrit-cli/g2c-1.0.1.tgz | head
 # 应包含: package/dist/* + package/docs/HELP.md + package/package.json + package/README.md
 # 不应包含: src/、testfiles/、node_modules/、.git/
+```
+
+全路径本地安装验证:
+
+```bash
+npm install -g /Users/luojun/workspace/gerrit-cli/g2c-1.0.1.tgz
+g2c --version
 ```
 
 `package.json` 的 `files` 字段是白名单,新增要发布的文件请加进去;`src/` 等私有文件**不会**被打包,已验证。
