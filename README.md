@@ -2,7 +2,7 @@
 
 > Gerrit-to-Claw CLI — Gerrit review 自动化命令行工具,支持人与 AI Agent 两种使用方式。
 
-[![npm version](https://img.shields.io/badge/npm-1.0.1-blue.svg)](https://www.npmjs.com/package/g2c)
+[![npm version](https://img.shields.io/badge/npm-1.0.2-blue.svg)](https://www.npmjs.com/package/g2c)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org)
 [![license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 
@@ -22,7 +22,7 @@
 
 ```bash
 npm install -g https://github.com/fightmonster/g2c/releases/latest/download/g2c.tgz
-g2c --version     # 应输出 1.0.1
+g2c --version     # 应输出 1.0.2
 ```
 
 ---
@@ -44,7 +44,7 @@ g2c setup --url <gerrit-http-url> --username <gerrit-username> --password '<Gerr
 ```bash
 g2c                # 默认输出:连接状态、服务器、当前用户、配置路径、内置手册路径
 g2c auth status    # 验证连通性 + 当前账号
-g2c me             # 名下 change 数量汇总(Open/Merged/Abandoned)
+g2c me             # 最近 7 天名下 change 数量汇总(Open/Merged/Abandoned)
 ```
 
 ### 3. 跑一次查询
@@ -195,7 +195,7 @@ g2c
 ├── auth               login / status
 ├── config             get / set
 ├── user               search / lookup / perms
-├── me                 汇总 / 列出名下 change
+├── me                 最近 7 天汇总 / 列出名下 change
 ├── list-repo          仓库列表(支持 --prefix/--match/--regex/--description/--branches)
 ├── list-branch        分支列表
 ├── change             读 + 状态变更 + 协作元数据(共 25+ 子命令)
@@ -262,7 +262,7 @@ npm run dev -- auth status      # tsx 跑 src,改完即生效
 ```bash
 npm run typecheck    # tsc --noEmit
 npm run build        # tsc → dist/
-npm test             # vitest,27 个测试
+npm test             # vitest,28 个测试
 npm audit            # 依赖安全审计
 ```
 

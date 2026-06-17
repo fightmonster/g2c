@@ -1,6 +1,6 @@
 # g2c 命令参考手册
 
-> 适用版本:`g2c 1.0.0`(Node ≥ 20)
+> 适用版本:`g2c 1.0.2`(Node ≥ 20)
 > 文档定位:命令参考。命令快查与英文示例见根目录 `README.md`,未完成项见 `Gerrit2Claw-cli_TODO.md`。
 > 任何时候不确定参数,直接执行 `g2c <command> --help`(已实现,commander 自带)。
 >
@@ -41,7 +41,6 @@
 --username <name>            覆盖 GERRIT_USERNAME
 --password <password>        覆盖 GERRIT_PASSWORD(慎用,会进 shell 历史)
 --repo <path>                覆盖本地 Git 仓库
---branch <branch>            覆盖目标分支
 --color / --no-color         强制开关颜色
 --verbose                    启用诊断日志到 stderr(仅声明,未消费,见 TODO 5.1)
 -h, --help                   显示帮助
@@ -64,15 +63,30 @@
 命令行全局选项  >  环境变量  >  ~/.gerrit2claw/config.json  >  .env / .g2crc(只读兼容)
 ```
 
-`auth login` 与 `config set` 只写用户级 `~/.gerrit2claw/config.json`,不会写项目仓库(决策见 TODO 5.2)。
+`setup`、`auth login` 与 `config set` 只写用户级 `~/.gerrit2claw/config.json`,不会写项目仓库(决策见 TODO 5.2)。默认本地仓库和默认分支配置已废弃;本地仓库操作请显式传 `--repo`。
 
 ---
 
 ## 1. auth / config / user
 
-### 1.1 `g2c auth login`
+### 1.1 `g2c setup`
 
-把 Gerrit 凭据写入 `~/.gerrit2claw/config.json`(目录 0700,文件 0600)。默认会 ping 一次 `/a/accounts/self` 验证连通性。
+首次使用的一行配置入口。必须验证 Gerrit 连通性,验证失败不会写入配置。先在 Gerrit Web UI 的 `Settings -> HTTP Credentials` 生成 HTTP Password。未提供 `--ssh-url` 时,根据 HTTP URL 和用户名自动推导 `ssh://<username>@<http-host>:29418`。
+
+| 选项 | 说明 |
+|---|---|
+| `--url <url>` | Gerrit HTTP URL |
+| `--ssh-url <url>` | Gerrit SSH URL,可省略 |
+| `--username <name>` | Gerrit 用户名 |
+| `--password <password>` | Gerrit HTTP 密码 |
+
+```bash
+g2c setup --url <gerrit-http-url> --username <gerrit-username> --password '<Gerrit HTTP Password>'
+```
+
+### 1.2 `g2c auth login`
+
+把 Gerrit 凭据写入 `~/.gerrit2claw/config.json`(目录 0700,文件 0600)。必须 ping 一次 `/a/accounts/self` 验证连通性,不能跳过。
 
 | 选项 | 说明 |
 |---|---|
@@ -80,21 +94,15 @@
 | `--ssh-url <url>` | Gerrit SSH URL |
 | `--username <name>` | Gerrit 用户名 |
 | `--password <password>` | Gerrit HTTP 密码(也可走环境变量) |
-| `--repo <path>` | 默认本地 Git 仓库 |
-| `--branch <branch>` | 默认目标分支 |
-| `--no-verify` | 跳过连通性检查 |
 
 ```bash
 g2c auth login \
-  --url http://localhost:8080 \
-  --ssh-url ssh://luojun@localhost:29418 \
-  --username luojun \
-  --password '<http-password>' \
-  --repo /Users/luojun/workspace/ex4-docker-gerrit/prj1-git \
-  --branch master
+  --url <gerrit-http-url> \
+  --username <gerrit-username> \
+  --password '<Gerrit HTTP Password>'
 ```
 
-### 1.2 `g2c auth status`
+### 1.3 `g2c auth status`
 
 验证当前凭据并打印当前账号信息。退出码 0 表示通。
 
@@ -102,34 +110,33 @@ g2c auth login \
 g2c auth status --json
 ```
 
-### 1.3 `g2c config get [key]`
+### 1.4 `g2c config get [key]`
 
 打印生效后的配置。不带 `key` 输出全集,带 `key` 取单值。
 
 ```bash
 g2c config get
-g2c config get G2C_DEFAULT_BRANCH --json
+g2c config get GERRIT_HTTP_URL --json
 ```
 
-### 1.4 `g2c config set <key> <value>`
+### 1.5 `g2c config set <key> <value>`
 
 写一条配置到 `~/.gerrit2claw/config.json`。`key` 大小写不敏感(内部统一存大写)。
 
 ```bash
-g2c config set G2C_DEFAULT_BRANCH master
-g2c config set GERRIT_HTTP_URL http://localhost:8080
+g2c config set GERRIT_HTTP_URL <gerrit-http-url>
 ```
 
-### 1.5 `g2c user search <query>` / `g2c user lookup <query>`
+### 1.6 `g2c user search <query>` / `g2c user lookup <query>`
 
 按用户名 / 全名 / display name / 邮箱查账号,带 `--limit`(默认 20)。`search` 与 `lookup` 在 Gerrit 接口上等价,保留两套命令名只为兼容习惯。
 
 ```bash
-g2c user search luojun --limit 5 --json
-g2c user lookup "luo" --json
+g2c user search <account-query> --limit 5 --json
+g2c user lookup <account-query> --json
 ```
 
-### 1.6 `g2c user perms [--change <change>]`
+### 1.7 `g2c user perms [--change <change>]`
 
 显示当前用户在指定 change(可省)上的关键权限,辅助判断"我能不能 submit / abandon"。
 
@@ -143,21 +150,21 @@ g2c user perms --change 7 --json
 
 ### 2.1 `g2c me`
 
-显示当前用户、可见仓库数、分支数,以及按状态聚合的 change 数量(Open / Merged / Abandoned)。默认对 1000 个仓库、每仓 1000 个分支计数。
+显示当前用户最近 7 天名下 change 数量(Open / Merged / Abandoned)。统计直接查询 Gerrit change 索引(`owner:self after:<7天前>`),不再遍历仓库/分支,因此不会被父路径或不可访问项目打断。
 
 | 选项 | 说明 |
 |---|---|
-| `--repo-limit <n>` | 最多检查多少仓库(默认 1000) |
-| `--branch-limit <n>` | 每仓最多多少分支(默认 1000) |
-| `--count-limit <n>` | 详细计数的仓库上限(默认 1000) |
-| `--status <status>` | `open` / `merged` / `abandoned` 之一,改为列出对应 change |
+| `--repo-limit <n>` | 兼容旧参数;当前 `me` 不再扫描仓库 |
+| `--branch-limit <n>` | 兼容旧参数;当前 `me` 不再扫描分支 |
+| `--count-limit <n>` | 兼容旧参数;当前 `me` 直接统计最近 change |
+| `--status <status>` | `open` / `merged` / `abandoned` 之一,改为列出最近 7 天对应 change |
 | `--limit <n>` | `--status` 列表的最大行数(默认 100) |
 | `--full` | 输出完整 normalized 结构,而不是友好字段 |
 
 ```bash
-g2c me --json                       # 汇总计数
-g2c me --status open --json         # 我名下 open change
-g2c me --status merged --limit 20   # 我名下 merged,最多 20 条
+g2c me --json                       # 最近 7 天汇总计数
+g2c me --status open --json         # 最近 7 天我名下 open change
+g2c me --status merged --limit 20   # 最近 7 天我名下 merged,最多 20 条
 ```
 
 ### 2.2 `g2c list-repo [options]`
@@ -372,8 +379,8 @@ g2c change hashtags set 7 --remove g2c-smoke --json
 
 ```bash
 g2c change reviewer list 2 --json
-g2c change reviewer add 7 --reviewer luojun --state REVIEWER --json
-g2c change reviewer suggest 2 --query luojun --limit 5 --json
+g2c change reviewer add 7 --reviewer <account> --state REVIEWER --json
+g2c change reviewer suggest 2 --query <account-query> --limit 5 --json
 ```
 
 #### 3.3.4 `change attention`
@@ -489,7 +496,7 @@ dry-run 时还会顺手返回每个 change 的 `canSubmit` 判断,方便预检�
 
 ```bash
 g2c repo status --json
-g2c repo status --repo /Users/luojun/workspace/ex4-docker-gerrit/prj1-git --json
+g2c repo status --repo /path/to/repo --json
 ```
 
 ### 6.2 `g2c repo conflict-check [--revision <rev>] <change>`
@@ -539,7 +546,7 @@ g2c repo cherry-pick 7 --target release/1.0 --json
 
 ```bash
 g2c repo conflict-start 5 \
-  --repo /Users/luojun/workspace/ex4-docker-gerrit/prj1-git --json
+  --repo /path/to/repo --json
 ```
 
 #### 6.4.2 `g2c repo conflict-read [options] <file>`
@@ -552,7 +559,7 @@ g2c repo conflict-start 5 \
 
 ```bash
 g2c repo conflict-read cli-conflict.txt \
-  --repo /Users/luojun/workspace/ex4-docker-gerrit/prj1-git --json
+  --repo /path/to/repo --json
 ```
 
 #### 6.4.3 `g2c repo conflict-resolve [options] <file>`
@@ -567,7 +574,7 @@ g2c repo conflict-read cli-conflict.txt \
 ```bash
 g2c repo conflict-resolve cli-conflict.txt \
   --content-file /tmp/resolved-cli-conflict.txt \
-  --repo /Users/luojun/workspace/ex4-docker-gerrit/prj1-git --json
+  --repo /path/to/repo --json
 ```
 
 #### 6.4.4 `g2c repo conflict-continue [options]`
@@ -581,7 +588,7 @@ g2c repo conflict-resolve cli-conflict.txt \
 
 ```bash
 g2c repo conflict-continue \
-  --repo /Users/luojun/workspace/ex4-docker-gerrit/prj1-git --yes --json
+  --repo /path/to/repo --yes --json
 ```
 
 #### 6.4.5 `g2c repo abort [options]`
@@ -594,7 +601,7 @@ g2c repo conflict-continue \
 
 ```bash
 g2c repo abort \
-  --repo /Users/luojun/workspace/ex4-docker-gerrit/prj1-git --json
+  --repo /path/to/repo --json
 ```
 
 ---
@@ -696,7 +703,7 @@ g2c
 │   ├── search <query>   查账号
 │   ├── lookup <query>   查账号(同 search)
 │   └── perms [--change] 查当前用户权限
-├── me [--status ...]    汇总 / 列表
+├── me [--status ...]    最近 7 天汇总 / 列表
 ├── list-repo            仓库列表
 ├── list-branch [repo]   分支列表
 ├── change
