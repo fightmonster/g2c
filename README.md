@@ -2,7 +2,7 @@
 
 > Gerrit-to-Claw CLI — Gerrit review 自动化命令行工具,支持人与 AI Agent 两种使用方式。
 
-[![npm version](https://img.shields.io/badge/npm-1.0.2-blue.svg)](https://www.npmjs.com/package/g2c)
+[![npm version](https://img.shields.io/badge/npm-1.0.5-blue.svg)](https://www.npmjs.com/package/g2c)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org)
 [![license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 
@@ -22,7 +22,14 @@
 
 ```bash
 npm install -g https://github.com/fightmonster/g2c/releases/latest/download/g2c.tgz
-g2c --version     # 应输出 1.0.2
+g2c --version     # 应输出 1.0.5
+```
+
+升级或检查新版本:
+
+```bash
+g2c update          # 安装 GitHub Release 中的最新稳定版
+g2c update --check  # 仅检查
 ```
 
 ---
@@ -52,8 +59,12 @@ g2c me             # 最近 7 天名下 change 数量汇总(Open/Merged/Abandone
 ```bash
 g2c change list --query 'status:open owner:self' --limit 5 --json
 g2c change list --query 'status:open owner:self' --all --page-size 100 --json
+g2c change list --query 'owner:self today' --json
+g2c change list --query 'owner:li.liu after:2026-06-17 before:2026-06-18' --json
 g2c change info 7 --json
 ```
+
+`today`、`after:YYYY-MM-DD`、`before:YYYY-MM-DD` 会按当前系统时区展开后再发给 Gerrit,适合直接问"今天/某天的提交",不用手动换算 Gerrit/UTC 时间。
 
 ### 4. 评审 / 打分
 
@@ -262,7 +273,7 @@ npm run dev -- auth status      # tsx 跑 src,改完即生效
 ```bash
 npm run typecheck    # tsc --noEmit
 npm run build        # tsc → dist/
-npm test             # vitest,28 个测试
+npm test             # vitest,29 个测试
 npm audit            # 依赖安全审计
 ```
 

@@ -1,6 +1,6 @@
 # g2c 命令参考手册
 
-> 适用版本:`g2c 1.0.2`(Node ≥ 20)
+> 适用版本:`g2c 1.0.5`(Node ≥ 20)
 > 文档定位:命令参考。命令快查与英文示例见根目录 `README.md`,未完成项见 `Gerrit2Claw-cli_TODO.md`。
 > 任何时候不确定参数,直接执行 `g2c <command> --help`(已实现,commander 自带)。
 >
@@ -68,6 +68,15 @@
 ---
 
 ## 1. auth / config / user
+
+### 1.0 `g2c update [--check]`
+
+从 GitHub Release API 查询最新稳定版，并只使用发布资产 `g2c.tgz` 更新。默认在发现新版本时执行 `npm install --global <release-asset-url>`；`--check` 只返回版本比较结果，不修改本机安装。
+
+```bash
+g2c update
+g2c update --check --json
+```
 
 ### 1.1 `g2c setup`
 
@@ -227,9 +236,11 @@ g2c list-branch --project g2c-e2e-alpha --limit 20 --json
 g2c change list --query 'status:open owner:self' --limit 5 --json
 g2c change list --query 'status:open owner:self' --all --page-size 100 --json
 g2c change list --query 'status:open project:gerrit-test-repo' --json
+g2c change list --query 'owner:self today' --json     # today 按本机本地时区展开
 ```
 
 `--all` 是 Agent 导出 1000+ 行的关键;配合 `--limit` 做硬上限保护。
+查询里的 `today` / `after:YYYY-MM-DD` / `before:YYYY-MM-DD` 会先按当前系统时区换算成 Gerrit 时间,不需要手动计算 UTC 偏移。
 
 #### 3.1.2 `g2c change info <change> [--full]`
 
@@ -402,9 +413,12 @@ g2c change attention add 7 --account 1000002 --reason 'please review' --json
 
 向 Gerrit 提交评审动作。
 
+> `review message` / `review comment` 对 **任意状态**(NEW / MERGED / ABANDONED)的 change 都可发,因为 Gerrit 的 `/review` 端点本身允许在已合并/已废弃的 change 上追加消息和 inline 评论(常用于事后说明、reply)。
+> `review score` / `review submit` 仅对 open(NEW)change 有效 —— Gerrit 在非 open change 上投票或提交会被服务端拒绝,g2c 会提前抛 `CHANGE_NOT_OPEN`。
+
 ### 4.1 `g2c review message [options] <change>`
 
-发一条评审消息(无 label,无 inline)。
+发一条评审消息(无 label,无 inline)。任意状态 change 都可发。
 
 ```bash
 g2c review message 2 --msg 'looks good overall' --json
@@ -412,7 +426,7 @@ g2c review message 2 --msg 'looks good overall' --json
 
 ### 4.2 `g2c review comment [options] <change>`
 
-发单条 inline 评审。**`--range` 未实现**(TODO 5.3),当前只支持 `--line`。
+发单条 inline 评审。任意状态 change 都可发。**`--range` 未实现**(TODO 5.3),当前只支持 `--line`。
 
 | 选项 | 说明 |
 |---|---|
