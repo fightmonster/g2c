@@ -74,7 +74,7 @@
 
 ### 1.0 `g2c update [--check]`
 
-从 GitHub Release API 查询最新稳定版，并只使用发布资产 `g2c.tgz` 更新。默认在发现新版本时执行 `npm install --global <release-asset-url>`；`--check` 只返回版本比较结果，不修改本机安装。
+从 GitHub Release API 查询最新稳定版，并只使用发布资产 `g2c.tgz` 更新。默认在发现新版本时执行全局 npm 安装，并自动沿用当前 `g2c` 所在的 npm prefix，避免系统中存在多个全局 prefix 时更新到错误位置；`--check` 只返回版本比较结果，不修改本机安装。
 
 ```bash
 g2c update

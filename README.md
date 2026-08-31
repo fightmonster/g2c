@@ -32,6 +32,8 @@ g2c update          # 安装 GitHub Release 中的最新稳定版
 g2c update --check  # 仅检查
 ```
 
+`g2c update` 会沿用当前可执行文件所在的 npm 全局 prefix，避免机器同时配置 `/usr/local`、`~/.local` 等多个 prefix 时更新到另一个安装位置。
+
 ---
 
 ## 快速上手
@@ -309,7 +311,7 @@ npm run dev -- auth status      # tsx 跑 src,改完即生效
 ```bash
 npm run typecheck    # tsc --noEmit
 npm run build        # tsc → dist/
-npm test             # vitest,47 个测试
+npm test             # vitest,48 个测试
 npm audit            # 依赖安全审计
 ```
 
