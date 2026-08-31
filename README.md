@@ -2,7 +2,7 @@
 
 > Gerrit-to-Claw CLI — Gerrit review 自动化命令行工具,支持人与 AI Agent 两种使用方式。
 
-[![npm version](https://img.shields.io/badge/npm-1.0.5-blue.svg)](https://www.npmjs.com/package/g2c)
+[![npm version](https://img.shields.io/badge/npm-1.0.6-blue.svg)](https://www.npmjs.com/package/g2c)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org)
 [![license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 
@@ -22,7 +22,7 @@
 
 ```bash
 npm install -g https://github.com/fightmonster/g2c/releases/latest/download/g2c.tgz
-g2c --version     # 应输出 1.0.5
+g2c --version     # 应输出 1.0.6
 ```
 
 升级或检查新版本:
@@ -62,6 +62,28 @@ g2c change list --query 'status:open owner:self' --all --page-size 100 --json
 g2c change list --query 'owner:self today' --json
 g2c change list --query 'owner:li.liu after:2026-06-17 before:2026-06-18' --json
 g2c change info 7 --json
+```
+
+### 超大仓库下载策略
+
+```bash
+# 最轻：不 clone，只导出该 Change 的文件和 patch（推荐 frameworks/base）
+g2c change export 12603 --output-dir ./change-12603 --json
+
+# 查询仓库及任意目标分支（不修改本地目录）
+g2c repo list --match system_ext --json
+g2c repo info platform/vendor/xos/apps/system_ext --json
+g2c repo branches platform/vendor/xos/apps/system_ext --json
+g2c repo branch platform/vendor/xos/apps/system_ext MTK_Phoenix_A16_mssi_DEV --json
+
+# 生成只 fetch Change ref 的原生 Git 命令（不执行）
+g2c repo download 12603 --output-dir ./aiagent-change-12603 --json
+
+# 生成目标分支 shallow clone 命令（不执行）
+g2c repo clone 12603 --depth 1 --output-dir ./aiagent --json
+
+# Gerrit 支持 partial clone 时生成带 blob filter 的命令
+g2c repo clone 12603 --depth 1 --filter blob:none --output-dir ./aiagent --json
 ```
 
 `today`、`after:YYYY-MM-DD`、`before:YYYY-MM-DD` 会按当前系统时区展开后再发给 Gerrit,适合直接问"今天/某天的提交",不用手动换算 Gerrit/UTC 时间。
@@ -107,6 +129,11 @@ Agent 在解析 JSON 时只用关心这几个字段名:
 | `Git-Change-Id` | commit message 里的 SHA,跟着提交走 | `I0000000000000000000000000000000000a10001` |
 | `Gerrit-REST-id` | `项目~编号`,REST API 用 | `g2c-e2e-alpha~7` |
 | `currentRevision` | 一次 push 的 patch set SHA | `2f6cb182cf01360d8e7371991c03c1090381c7f1` |
+| `mergedCommitId` | 已合并 change 的当前提交 SHA，即 Gerrit UI 的 `Merged As` | `c68af25...` |
+| `parentCommitIds` | 当前 revision 的父提交 SHA 数组；merge commit 可有多个 | `["76508c2..."]` |
+| `cloneUrls` | Gerrit 实际公布的 Git URL，按 ssh/http 等协议分组 | `ssh://user@gerrit:29418/project` |
+
+兼容字段 `mergedAs` 和 `parents` 暂时保留；新 Agent 应优先使用 `mergedCommitId` 与 `parentCommitIds`。
 
 `change list` / `change info` / `me --status` 默认只输出**友好字段**(`URL-number` / `subject` / `owner` / `repo` / `branch` / `updated` / `CR` / `Git-Change-Id` 等);要看 `labels` / `submitRequirements` 等原始结构,加 `--full`。
 
@@ -169,7 +196,16 @@ g2c --json batch submit --query 'status:open owner:self label:Code-Review=+2' --
 
 # 3) 单条写前查
 g2c --json change info 7 --full
+g2c --json change parent 12593
+g2c --json change merged-as 12593
+g2c --json change clone-url 12593 --scheme ssh
 # 读 data.submitRequirements,确保都 SATISFIED / NOT_APPLICABLE 再 --json review submit 7
+```
+
+`change clone-url` 返回的 `cloneCommand` 会显式包含 Change 的目标分支：
+
+```bash
+git clone -b 'master' 'ssh://jun.luo@gerrit.example:29418/platform/vendor/xos/standaloneapp/camera'
 ```
 
 ### 输出格式
@@ -207,16 +243,16 @@ g2c
 ├── config             get / set
 ├── user               search / lookup / perms
 ├── me                 最近 7 天汇总 / 列出名下 change
-├── list-repo          仓库列表(支持 --prefix/--match/--regex/--description/--branches)
-├── list-branch        分支列表
+├── list-repo          兼容入口；推荐 repo list
+├── list-branch        兼容入口；推荐 repo branches
 ├── change             读 + 状态变更 + 协作元数据(共 25+ 子命令)
-│   ├── list / info / revisions / files / file-content / diff / patch
+│   ├── list / info / parent / merged-as / clone-url / revisions / files / export / file-content / diff / patch
 │   ├── comments / messages / submitted-together / related
 │   ├── abandon / restore / rebase / revert / move / wip / ready
 │   ├── topic / hashtags / reviewer / attention
 ├── review             message / comment / score / submit
 ├── batch              score / submit(默认 dry-run)
-├── repo               status / conflict-check / cherry-pick / conflict-* / abort
+├── repo               list / info / branches / branch（查询）+ 本地 Git 兼容命令
 └── server             version / capabilities / config
 ```
 
@@ -273,11 +309,11 @@ npm run dev -- auth status      # tsx 跑 src,改完即生效
 ```bash
 npm run typecheck    # tsc --noEmit
 npm run build        # tsc → dist/
-npm test             # vitest,29 个测试
+npm test             # vitest,47 个测试
 npm audit            # 依赖安全审计
 ```
 
-测试涵盖 `config` / `diff` / `gerrit client` / `git conflict marker` / `ui` / `program integration` 六个文件。
+测试涵盖 `config` / `diff` / `gerrit client` / `git conflict marker` / `query date` / `ui` / `program integration` 七个文件。
 
 ### 打包 tgz(本地验证发布物)
 

@@ -1,6 +1,6 @@
 # g2c 命令参考手册
 
-> 适用版本:`g2c 1.0.5`(Node ≥ 20)
+> 适用版本:`g2c 1.0.6`(Node ≥ 20)
 > 文档定位:命令参考。命令快查与英文示例见根目录 `README.md`,未完成项见 `Gerrit2Claw-cli_TODO.md`。
 > 任何时候不确定参数,直接执行 `g2c <command> --help`(已实现,commander 自带)。
 >
@@ -26,7 +26,10 @@
 | **URL-number** | `URL-number` | Gerrit 分配的单调递增整数 ID,URL 末尾那个数字(如 `+/5`) |
 | **Change-Id** | `Git-Change-Id` | commit message 里 `Change-Id: I...` 的 SHA 串,跟着提交走 |
 | **REST-id** | `Gerrit-REST-id` | `项目~编号` 复合 ID,供 REST API 使用 |
-| **revision** | `currentRevision` | 一次 push 产生的 patch set 的 SHA |
+| **revision** | `currentRevision` | 当前 revision SHA；change 已合并时也是 Gerrit UI 的 `Merged As` |
+| **parent commit ID** | `parentCommitIds[]` | 当前 revision 的父提交 SHA；merge commit 可能有多个 parent |
+| **merged commit ID** | `mergedCommitId` | 已合并 change 的当前提交 SHA，即 Gerrit UI 的 `Merged As` |
+| **clone URL** | `cloneUrls.<scheme>` | Gerrit 为当前 revision 公布的仓库 URL，不由 CLI 猜测 |
 
 `change list` / `change info` / `me --status` 默认只输出友好字段(URL-number / 状态 / 标题 / owner / reviewers / repo / branch / updated / CR);想看 `labels` / `submitRequirements` 等原始 normalized 字段,加 `--full`。
 
@@ -176,9 +179,9 @@ g2c me --status open --json         # 最近 7 天我名下 open change
 g2c me --status merged --limit 20   # 最近 7 天我名下 merged,最多 20 条
 ```
 
-### 2.2 `g2c list-repo [options]`
+### 2.2 `g2c list-repo [options]`（兼容命令）
 
-列出当前用户可见的仓库。
+列出当前用户可见的仓库。新脚本优先使用 `g2c repo list`，本命令继续兼容。
 
 | 选项 | 说明 |
 |---|---|
@@ -197,9 +200,9 @@ g2c list-repo --json
 g2c list-repo --prefix g2c- --description --branches master --json
 ```
 
-### 2.3 `g2c list-branch [options] [repo]`
+### 2.3 `g2c list-branch [options] [repo]`（兼容命令）
 
-列某仓库的分支。`repo` 也可由 `--project` 给出,后者优先级高。
+列某仓库的分支。新脚本优先使用 `g2c repo branches <project>`。
 
 | 选项 | 说明 |
 |---|---|
@@ -244,18 +247,44 @@ g2c change list --query 'owner:self today' --json     # today 按本机本地时
 
 #### 3.1.2 `g2c change info <change> [--full]`
 
-单条 change 的友好元数据;`--full` 出完整 normalized。
+单条 change 的友好元数据;`--full` 出完整 normalized。友好输出包含 `branch`、`currentRevision`、`mergedCommitId`、`parentCommitIds`、`cloneUrls` 和 `fetchRef`。`mergedAs`、`parents` 作为兼容别名保留；`mergedCommitId` 仅在状态为 `MERGED` 时有值。
 
 ```bash
 g2c change info 7 --json
 g2c change info I18ae4ecff7c6c867958e8d749b9fd2817aece3e2 --full --json
 ```
 
-#### 3.1.3 `g2c change revisions <change>`
+#### 3.1.3 `g2c change parent <change> [--revision <rev>]`
+
+获取指定 revision 的所有父提交。规范字段为 `parentCommitIds[]`；兼容字段 `parents[]` 额外包含 subject。普通提交通常有一个 parent，merge commit 可以有多个。
+
+```bash
+g2c change parent 12593 --json
+g2c change parent 12593 --revision current --json
+```
+
+#### 3.1.4 `g2c change merged-as <change>`
+
+按 Gerrit Web UI 的规则返回 `mergedCommitId`：当 change 状态为 `MERGED` 时取 `current_revision`，未合并时返回 `null`。同时保留 `mergedAs` 兼容别名。
+
+```bash
+g2c change merged-as 12593 --json
+```
+
+#### 3.1.5 `g2c change clone-url <change> [--scheme <scheme>]`
+
+返回 Gerrit 在 `RevisionInfo.fetch` 中实际公布的 clone/download URL、fetch ref 和下载命令。生成的 `cloneCommand` 必定包含 Change 目标分支，例如 `git clone -b 'master' '<url>'`。使用 `--scheme ssh` 或 `--scheme http` 选定一种协议；不传时返回全部协议的 `cloneCommands`。
+
+```bash
+g2c change clone-url 12593 --json
+g2c change clone-url 12593 --scheme ssh --json
+```
+
+#### 3.1.6 `g2c change revisions <change>`
 
 列出该 change 的所有 patch set(每个 revision 的 SHA、commit 作者、uploader、时间)。
 
-#### 3.1.4 `g2c change files [--revision <rev>] <change>`
+#### 3.1.7 `g2c change files [--revision <rev>] <change>`
 
 列出本 revision 变更的文件(含 status、insertions / deletions、size delta)。
 
@@ -264,7 +293,17 @@ g2c change files 2 --json
 g2c change files 2 --revision 7b685d30627f6e51e52c47a08ceb477855269d84 --json
 ```
 
-#### 3.1.5 `g2c change file-content [options] <change>`
+#### 3.1.8 `g2c change export <change> [options]`
+
+不 clone Git，通过 REST 导出 metadata、完整 patch、所有真实变更文件和逐文件 patch。适合 `frameworks/base` 等超大仓库。Gerrit 虚拟文件（如 `/COMMIT_MSG`）记录到 `skippedFiles`，不会导致导出失败。
+
+```bash
+g2c change export 12603 --output-dir ./change-12603 --json
+g2c change export 12603 --no-files --output-dir ./patch-only --json
+g2c change export 12603 --no-file-patches --concurrency 8 --output-dir ./files-only --json
+```
+
+#### 3.1.9 `g2c change file-content [options] <change>`
 
 读或下载一个文件的当前内容。
 
@@ -281,7 +320,7 @@ g2c change file-content 7 --file alpha-master-change.txt \
   --output /tmp/alpha-master-change.txt --json
 ```
 
-#### 3.1.6 `g2c change diff [options] <change>`
+#### 3.1.10 `g2c change diff [options] <change>`
 
 清洗后的 diff。**当前未实现 `--base / --parent / --whitespace`**(见 TODO 5.4),只能看相对 parent 的 diff。
 
@@ -296,7 +335,7 @@ g2c change file-content 7 --file alpha-master-change.txt \
 g2c change diff 2 --file cli-open-change.txt --json
 ```
 
-#### 3.1.7 `g2c change patch [options] <change>`
+#### 3.1.11 `g2c change patch [options] <change>`
 
 Gerrit 格式化 patch(默认 base64,`--decode` 拿明文;`--zip` 直接拿 zip 归档)。
 
@@ -314,15 +353,15 @@ g2c change patch 7 --zip --output /tmp/2f6cb18.diff.zip --json
 g2c change patch 7 --output /tmp/2f6cb18.diff.base64 --json
 ```
 
-#### 3.1.8 `g2c change comments <change>`
+#### 3.1.12 `g2c change comments <change>`
 
 返回该 change 已发布的 review 评审(包含 inline comments,按 file / line 组织)。
 
-#### 3.1.9 `g2c change messages <change>`
+#### 3.1.13 `g2c change messages <change>`
 
 返回 change message(评审历史、状态变更说明、机器人消息等)。
 
-#### 3.1.10 `g2c change submitted-together [options] <change>`
+#### 3.1.14 `g2c change submitted-together [options] <change>`
 
 Gerrit 拓扑排序会一起被 submit 的 changes。`--option` 透传 Gerrit 参数(如 `non_conflicting`)。
 
@@ -331,7 +370,7 @@ g2c change submitted-together 7 --json
 g2c change submitted-together 7 --option non_conflicting --json
 ```
 
-#### 3.1.11 `g2c change related [--revision <rev>] <change>`
+#### 3.1.15 `g2c change related [--revision <rev>] <change>`
 
 返回相关 changes(同 topic、cherry-pick 关系等)。
 
@@ -502,9 +541,62 @@ dry-run 时还会顺手返回每个 change 的 `canSubmit` 判断,方便预检�
 
 ---
 
-## 6. repo(本地仓库)
+## 6. repo（Gerrit 仓库查询与兼容的本地操作）
 
-### 6.1 `g2c repo status [--repo <path>]`
+`repo list/info/branches/branch` 只查询 Gerrit，不修改本地目录；返回的 `commands` 供用户、AI Agent 或脚本交给原生 `git` 执行。
+
+### 6.1 `g2c repo list [options]`
+
+列出当前账号可见仓库，选项与兼容命令 `list-repo` 相同：`--limit`、`--skip`、`--prefix`、`--match`、`--regex`、`--description`、`--branches`。
+
+```bash
+g2c repo list --match system_ext --json
+```
+
+### 6.2 `g2c repo info <project>`
+
+查询仓库元数据，并根据已验证的 Gerrit 配置生成 SSH/HTTP clone URL 和原生 `git clone` 命令模板。输出以 `cloneUrlSource: configured-server` 明确标记其来源；Change 的 URL 则继续由 `change clone-url` 读取 Gerrit revision fetch 数据。
+
+```bash
+g2c repo info platform/vendor/xos/apps/system_ext --json
+```
+
+### 6.3 `g2c repo branches <project> [--limit <n>]`
+
+列出仓库的分支名称、完整 ref 和 HEAD revision。
+
+```bash
+g2c repo branches platform/vendor/xos/apps/system_ext --limit 200 --json
+```
+
+### 6.4 `g2c repo branch <project> <branch>`
+
+精确定位一个分支，返回 HEAD revision、clone URL，以及 `clone/fetch/checkout` 原生 Git 命令；命令本身不执行 Git。
+
+```bash
+g2c repo branch platform/vendor/xos/apps/system_ext MTK_Phoenix_A16_mssi_DEV --json
+```
+
+### 6.5 `g2c repo clone <change> [options]`
+
+查询 Change 的 project、branch 和 clone URL，生成原生 `git clone` 命令。该命令自身不执行 Git、不创建目录；JSON 中明确返回 `executed: false`。
+
+```bash
+g2c repo clone 12603 --output-dir ./aiagent --json
+g2c repo clone 12603 --depth 1 --filter blob:none --output-dir ./aiagent --json
+```
+
+### 6.6 `g2c repo download <change> [options]`
+
+查询 Change 的 clone URL、`fetchRef` 和 `currentRevision`，生成 `init / remote add / fetch / switch` 原生 Git 命令。该命令自身不下载、不创建目录；JSON 中明确返回 `executed: false`。
+
+```bash
+g2c repo download 12603 --output-dir ./aiagent-change-12603 --json
+```
+
+对于超大仓库，如果只需评审文件，优先 `change export`。需要 Git 工作树时，先用 `repo download` 或 `repo clone` 生成命令，再由用户、AI Agent 或脚本明确调用原生 Git。
+
+### 6.7 `g2c repo status [--repo <path>]`
 
 `git status` 的结构化版,JSON 返回当前 branch、HEAD、clean / dirty、untracked、冲突状态。
 
@@ -513,7 +605,7 @@ g2c repo status --json
 g2c repo status --repo /path/to/repo --json
 ```
 
-### 6.2 `g2c repo conflict-check [--revision <rev>] <change>`
+### 6.4 `g2c repo conflict-check [--revision <rev>] <change>`
 
 问 Gerrit:这个 change 当前能否 merge(走 `SubmitTypeInfo` / `mergeable`)。**只读**,不修改本地。
 
@@ -521,7 +613,7 @@ g2c repo status --repo /path/to/repo --json
 g2c repo conflict-check 5 --json
 ```
 
-### 6.3 `g2c repo cherry-pick [options] <change>`
+### 6.5 `g2c repo cherry-pick [options] <change>`
 
 走 **Gerrit REST** 创建 cherry-pick change。返回 `mode: "gerrit-rest"`,带源 change、目标分支、revision 和新 change 的 normalized 信息。
 
@@ -541,11 +633,11 @@ g2c repo cherry-pick 7 --target release/1.0 --json
 
 > 本地 fetch + cherry-pick + push 的增强版**未实现**(TODO 3.3);`conflict-start` 提供本地链路。
 
-### 6.4 冲突链(`repo conflict-*`)
+### 6.6 冲突链(`repo conflict-*`)
 
 完整流程:`conflict-start → conflict-read → conflict-resolve → conflict-continue`,任何阶段可 `repo abort` 中止。
 
-#### 6.4.1 `g2c repo conflict-start [options] <change>`
+#### 6.6.1 `g2c repo conflict-start [options] <change>`
 
 在本地 fetch 目标分支和当前 revision,基于目标分支创建 `g2c-conflict-<change>` 本地工作分支,尝试 cherry-pick。
 
@@ -563,7 +655,7 @@ g2c repo conflict-start 5 \
   --repo /path/to/repo --json
 ```
 
-#### 6.4.2 `g2c repo conflict-read [options] <file>`
+#### 6.6.2 `g2c repo conflict-read [options] <file>`
 
 读冲突文件并解析 conflict hunks(ours / theirs / marker 行号 / 文件路径)。CLI 走 `src/git.ts` 的 conflict marker parser。
 
@@ -576,7 +668,7 @@ g2c repo conflict-read cli-conflict.txt \
   --repo /path/to/repo --json
 ```
 
-#### 6.4.3 `g2c repo conflict-resolve [options] <file>`
+#### 6.6.3 `g2c repo conflict-resolve [options] <file>`
 
 用 `--content-file` 覆盖冲突文件,执行 `git add`。**不直接写远端**;所有冲突解决后必须显式 `conflict-continue --yes`。
 
@@ -591,7 +683,7 @@ g2c repo conflict-resolve cli-conflict.txt \
   --repo /path/to/repo --json
 ```
 
-#### 6.4.4 `g2c repo conflict-continue [options]`
+#### 6.6.4 `g2c repo conflict-continue [options]`
 
 确认无未解决冲突 → `git cherry-pick --continue` 或 `git rebase --continue` → push 到 `origin HEAD:refs/for/<change.branch>`。**必须 `--yes`**,否则返回 `PROTECTED_ACTION`。
 
@@ -605,7 +697,7 @@ g2c repo conflict-continue \
   --repo /path/to/repo --yes --json
 ```
 
-#### 6.4.5 `g2c repo abort [options]`
+#### 6.6.5 `g2c repo abort [options]`
 
 中止进行中的 cherry-pick / rebase。仅在检测到对应 Git 状态时执行;无状态时返回结构化错误或 no-op。
 
@@ -723,8 +815,10 @@ g2c
 ├── change
 │   ├── list             查询
 │   ├── info             单条元数据
+│   ├── parent / merged-as / clone-url
 │   ├── revisions        patch set 列表
 │   ├── files            文件列表
+│   ├── export           REST 导出变更文件和 patch
 │   ├── file-content     读 / 下载文件
 │   ├── diff             diff
 │   ├── patch            patch(.base64 / .zip)
@@ -747,6 +841,8 @@ g2c
 │   ├── score            批量打分(默认 dry-run)
 │   └── submit           批量 submit(默认 dry-run)
 ├── repo
+│   ├── clone            shallow/full clone 目标分支
+│   ├── download         只 fetch Change ref
 │   ├── status           本地 git 状态
 │   ├── conflict-check   问 Gerrit 能否 merge
 │   ├── cherry-pick      REST 版
