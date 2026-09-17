@@ -3,6 +3,15 @@
 All notable changes to `g2c` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.0.7] — 2026-09-17
+
+### Added
+- `g2c change gitiles-url <change>` returns the exact Gitiles URL for a Change revision; `--json` also includes the target branch URL.
+
+### Changed
+- `g2c change clone-url <change>` now defaults to one ready-to-run, branch-aware clone command.
+- Updated the bundled help and README with clone and Gitiles browsing guidance.
+
 ## [1.0.0] — 2026-06-09
 
 ### Added
