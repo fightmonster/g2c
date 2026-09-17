@@ -1,6 +1,6 @@
 # g2c 命令参考手册
 
-> 适用版本:`g2c 1.0.6`(Node ≥ 20)
+> 适用版本:`g2c 1.0.7`(Node ≥ 20)
 > 文档定位:命令参考。命令快查与英文示例见根目录 `README.md`,未完成项见 `Gerrit2Claw-cli_TODO.md`。
 > 任何时候不确定参数,直接执行 `g2c <command> --help`(已实现,commander 自带)。
 >
@@ -273,11 +273,20 @@ g2c change merged-as 12593 --json
 
 #### 3.1.5 `g2c change clone-url <change> [--scheme <scheme>]`
 
-返回 Gerrit 在 `RevisionInfo.fetch` 中实际公布的 clone/download URL、fetch ref 和下载命令。生成的 `cloneCommand` 必定包含 Change 目标分支，例如 `git clone -b 'master' '<url>'`。使用 `--scheme ssh` 或 `--scheme http` 选定一种协议；不传时返回全部协议的 `cloneCommands`。
+默认输出一条可直接执行的 clone 命令，优先使用 SSH，并显式带上 Change 目标分支，例如 `git clone -b 'master' '<url>'`。使用 `--scheme ssh` 或 `--scheme http` 选定协议；加 `--json` 可取得 clone URL、fetch ref 和全部协议的命令。
 
 ```bash
 g2c change clone-url 12593 --json
 g2c change clone-url 12593 --scheme ssh --json
+```
+
+#### 3.1.6 `g2c change gitiles-url <change> [--revision <rev>]`
+
+默认输出本次 Change 的精确 Gitiles revision 地址。加 `--json` 可取得 `gitilesUrl` 和 `branchGitilesUrl`；后者只指向目标分支当前 HEAD，不保证仍是本次 Change 的提交。
+
+```bash
+g2c change gitiles-url 13471
+g2c change gitiles-url 13471 --json
 ```
 
 #### 3.1.6 `g2c change revisions <change>`
@@ -815,7 +824,7 @@ g2c
 ├── change
 │   ├── list             查询
 │   ├── info             单条元数据
-│   ├── parent / merged-as / clone-url
+│   ├── parent / merged-as / clone-url / gitiles-url
 │   ├── revisions        patch set 列表
 │   ├── files            文件列表
 │   ├── export           REST 导出变更文件和 patch

@@ -2,7 +2,7 @@
 
 > Gerrit-to-Claw CLI — Gerrit review 自动化命令行工具,支持人与 AI Agent 两种使用方式。
 
-[![npm version](https://img.shields.io/badge/npm-1.0.6-blue.svg)](https://www.npmjs.com/package/g2c)
+[![npm version](https://img.shields.io/badge/npm-1.0.7-blue.svg)](https://www.npmjs.com/package/g2c)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org)
 [![license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 
@@ -22,7 +22,7 @@
 
 ```bash
 npm install -g https://github.com/fightmonster/g2c/releases/latest/download/g2c.tgz
-g2c --version     # 应输出 1.0.6
+g2c --version     # 应输出 1.0.7
 ```
 
 升级或检查新版本:
@@ -89,6 +89,18 @@ g2c repo clone 12603 --depth 1 --filter blob:none --output-dir ./aiagent --json
 ```
 
 `today`、`after:YYYY-MM-DD`、`before:YYYY-MM-DD` 会按当前系统时区展开后再发给 Gerrit,适合直接问"今天/某天的提交",不用手动换算 Gerrit/UTC 时间。
+
+### 克隆或浏览一个 Change
+
+```bash
+# 默认输出一条可直接执行的、带目标分支的克隆命令
+g2c change clone-url 13471
+
+# 默认输出本次 Change 的精确 Gitiles revision 地址
+g2c change gitiles-url 13471
+```
+
+加 `--json` 可取得完整字段；其中 `branchGitilesUrl` 仅浏览目标分支当前 HEAD，不能代替精确的 `gitilesUrl`。
 
 ### 4. 评审 / 打分
 
@@ -248,7 +260,7 @@ g2c
 ├── list-repo          兼容入口；推荐 repo list
 ├── list-branch        兼容入口；推荐 repo branches
 ├── change             读 + 状态变更 + 协作元数据(共 25+ 子命令)
-│   ├── list / info / parent / merged-as / clone-url / revisions / files / export / file-content / diff / patch
+│   ├── list / info / parent / merged-as / clone-url / gitiles-url / revisions / files / export / file-content / diff / patch
 │   ├── comments / messages / submitted-together / related
 │   ├── abandon / restore / rebase / revert / move / wip / ready
 │   ├── topic / hashtags / reviewer / attention
