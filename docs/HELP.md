@@ -1,6 +1,6 @@
 # g2c 命令参考手册
 
-> 适用版本:`g2c 1.0.7`(Node ≥ 20)
+> 适用版本:`g2c 1.0.8`(Node ≥ 20)
 > 文档定位:命令参考。命令快查与英文示例见根目录 `README.md`,未完成项见 `Gerrit2Claw-cli_TODO.md`。
 > 任何时候不确定参数,直接执行 `g2c <command> --help`(已实现,commander 自带)。
 >
@@ -273,7 +273,7 @@ g2c change merged-as 12593 --json
 
 #### 3.1.5 `g2c change clone-url <change> [--scheme <scheme>]`
 
-默认输出一条可直接执行的 clone 命令，优先使用 SSH，并显式带上 Change 目标分支，例如 `git clone -b 'master' '<url>'`。使用 `--scheme ssh` 或 `--scheme http` 选定协议；加 `--json` 可取得 clone URL、fetch ref 和全部协议的命令。
+默认输出一条可直接执行的 clone 命令，优先使用 SSH，并显式带上 Change 目标分支，例如 `git clone -b 'master' '<url>'`。使用 `--scheme ssh` 或 `--scheme http` 选定协议；加 `--json` 可取得 `cloneUrl`、fetch ref 和全部协议的 `cloneCommands`。
 
 ```bash
 g2c change clone-url 12593 --json
@@ -282,18 +282,21 @@ g2c change clone-url 12593 --scheme ssh --json
 
 #### 3.1.6 `g2c change gitiles-url <change> [--revision <rev>]`
 
-默认输出本次 Change 的精确 Gitiles revision 地址。加 `--json` 可取得 `gitilesUrl` 和 `branchGitilesUrl`；后者只指向目标分支当前 HEAD，不保证仍是本次 Change 的提交。
+默认输出本次 Change 的精确 Gitiles revision 地址。加 `--json` 可取得两个浏览地址：
+
+- `gitilesUrl`：精确定位本次 revision。已合并 Change 使用 `mergedCommitId`；未合并 Change 使用 patch set 的 `fetchRef`。
+- `branchGitilesUrl`：目标分支当前 HEAD，仅用于浏览分支，不保证仍是本次 Change 的提交。
 
 ```bash
-g2c change gitiles-url 13471
 g2c change gitiles-url 13471 --json
+g2c change gitiles-url 13471 --revision 2 --json
 ```
 
-#### 3.1.6 `g2c change revisions <change>`
+#### 3.1.7 `g2c change revisions <change>`
 
 列出该 change 的所有 patch set(每个 revision 的 SHA、commit 作者、uploader、时间)。
 
-#### 3.1.7 `g2c change files [--revision <rev>] <change>`
+#### 3.1.8 `g2c change files [--revision <rev>] <change>`
 
 列出本 revision 变更的文件(含 status、insertions / deletions、size delta)。
 
@@ -302,7 +305,7 @@ g2c change files 2 --json
 g2c change files 2 --revision 7b685d30627f6e51e52c47a08ceb477855269d84 --json
 ```
 
-#### 3.1.8 `g2c change export <change> [options]`
+#### 3.1.9 `g2c change export <change> [options]`
 
 不 clone Git，通过 REST 导出 metadata、完整 patch、所有真实变更文件和逐文件 patch。适合 `frameworks/base` 等超大仓库。Gerrit 虚拟文件（如 `/COMMIT_MSG`）记录到 `skippedFiles`，不会导致导出失败。
 
@@ -312,7 +315,7 @@ g2c change export 12603 --no-files --output-dir ./patch-only --json
 g2c change export 12603 --no-file-patches --concurrency 8 --output-dir ./files-only --json
 ```
 
-#### 3.1.9 `g2c change file-content [options] <change>`
+#### 3.1.10 `g2c change file-content [options] <change>`
 
 读或下载一个文件的当前内容。
 
@@ -320,8 +323,10 @@ g2c change export 12603 --no-file-patches --concurrency 8 --output-dir ./files-o
 |---|---|
 | `--file <path>` | 文件路径 |
 | `--revision <rev>` | revision(默认 `current`) |
-| `--decode` | 返回解码后的明文 |
-| `--output <path>` | 写到本地,默认用源文件 basename |
+| `--decode` | 仅当文件是有效 UTF-8 文本时返回解码后的明文；二进制文件不会输出内容到 JSON |
+| `--output <path>` | 按 Gerrit 原始字节写到本地,默认用源文件 basename；适用于 APK、ZIP 等二进制文件 |
+
+命令不会在 JSON 中返回原始 Base64 或二进制内容。二进制文件会返回 `bytes` 与 `isBinary: true`；需要文件时使用 `--output`，导出的字节与 Gerrit blob 保持一致。
 
 ```bash
 g2c change file-content 7 --file alpha-master-change.txt --decode --json
@@ -329,7 +334,7 @@ g2c change file-content 7 --file alpha-master-change.txt \
   --output /tmp/alpha-master-change.txt --json
 ```
 
-#### 3.1.10 `g2c change diff [options] <change>`
+#### 3.1.11 `g2c change diff [options] <change>`
 
 清洗后的 diff。**当前未实现 `--base / --parent / --whitespace`**(见 TODO 5.4),只能看相对 parent 的 diff。
 
@@ -344,7 +349,7 @@ g2c change file-content 7 --file alpha-master-change.txt \
 g2c change diff 2 --file cli-open-change.txt --json
 ```
 
-#### 3.1.11 `g2c change patch [options] <change>`
+#### 3.1.12 `g2c change patch [options] <change>`
 
 Gerrit 格式化 patch(默认 base64,`--decode` 拿明文;`--zip` 直接拿 zip 归档)。
 
@@ -362,15 +367,15 @@ g2c change patch 7 --zip --output /tmp/2f6cb18.diff.zip --json
 g2c change patch 7 --output /tmp/2f6cb18.diff.base64 --json
 ```
 
-#### 3.1.12 `g2c change comments <change>`
+#### 3.1.13 `g2c change comments <change>`
 
 返回该 change 已发布的 review 评审(包含 inline comments,按 file / line 组织)。
 
-#### 3.1.13 `g2c change messages <change>`
+#### 3.1.14 `g2c change messages <change>`
 
 返回 change message(评审历史、状态变更说明、机器人消息等)。
 
-#### 3.1.14 `g2c change submitted-together [options] <change>`
+#### 3.1.15 `g2c change submitted-together [options] <change>`
 
 Gerrit 拓扑排序会一起被 submit 的 changes。`--option` 透传 Gerrit 参数(如 `non_conflicting`)。
 
@@ -379,7 +384,7 @@ g2c change submitted-together 7 --json
 g2c change submitted-together 7 --option non_conflicting --json
 ```
 
-#### 3.1.15 `g2c change related [--revision <rev>] <change>`
+#### 3.1.16 `g2c change related [--revision <rev>] <change>`
 
 返回相关 changes(同 topic、cherry-pick 关系等)。
 

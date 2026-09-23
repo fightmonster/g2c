@@ -2,7 +2,7 @@
 
 > Gerrit-to-Claw CLI — Gerrit review 自动化命令行工具,支持人与 AI Agent 两种使用方式。
 
-[![npm version](https://img.shields.io/badge/npm-1.0.7-blue.svg)](https://www.npmjs.com/package/g2c)
+[![npm version](https://img.shields.io/badge/npm-1.0.8-blue.svg)](https://www.npmjs.com/package/g2c)
 [![node](https://img.shields.io/badge/node-%E2%89%A520-green.svg)](https://nodejs.org)
 [![license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 
@@ -22,7 +22,7 @@
 
 ```bash
 npm install -g https://github.com/fightmonster/g2c/releases/latest/download/g2c.tgz
-g2c --version     # 应输出 1.0.7
+g2c --version     # 应输出 1.0.8
 ```
 
 升级或检查新版本:
@@ -66,6 +66,22 @@ g2c change list --query 'owner:li.liu after:2026-06-17 before:2026-06-18' --json
 g2c change info 7 --json
 ```
 
+### 安全导出文本和二进制文件
+
+`change file-content` 按 Gerrit 原始字节导出文件，适用于 APK、AAR、ZIP 等二进制文件；JSON 不会回传原始二进制。文本文件加 `--decode` 才返回 UTF-8 内容。
+
+```bash
+# 二进制：原样写盘
+g2c change file-content 13850 \
+  --file DeviceManager/devmanager-3031-a10.apk \
+  --output /tmp/devmanager.apk --json
+
+# 文本：写盘并返回 UTF-8 内容
+g2c change file-content 13850 \
+  --file DeviceManager/Android.bp \
+  --decode --output /tmp/Android.bp --json
+```
+
 ### 超大仓库下载策略
 
 ```bash
@@ -89,18 +105,6 @@ g2c repo clone 12603 --depth 1 --filter blob:none --output-dir ./aiagent --json
 ```
 
 `today`、`after:YYYY-MM-DD`、`before:YYYY-MM-DD` 会按当前系统时区展开后再发给 Gerrit,适合直接问"今天/某天的提交",不用手动换算 Gerrit/UTC 时间。
-
-### 克隆或浏览一个 Change
-
-```bash
-# 默认输出一条可直接执行的、带目标分支的克隆命令
-g2c change clone-url 13471
-
-# 默认输出本次 Change 的精确 Gitiles revision 地址
-g2c change gitiles-url 13471
-```
-
-加 `--json` 可取得完整字段；其中 `branchGitilesUrl` 仅浏览目标分支当前 HEAD，不能代替精确的 `gitilesUrl`。
 
 ### 4. 评审 / 打分
 
@@ -148,6 +152,18 @@ Agent 在解析 JSON 时只用关心这几个字段名:
 | `cloneUrls` | Gerrit 实际公布的 Git URL，按 ssh/http 等协议分组 | `ssh://user@gerrit:29418/project` |
 
 兼容字段 `mergedAs` 和 `parents` 暂时保留；新 Agent 应优先使用 `mergedCommitId` 与 `parentCommitIds`。
+
+### Clone and browse a Change
+
+```bash
+# 默认直接输出一条可执行的、带目标分支的 git clone 命令
+g2c change clone-url 13471
+
+# 默认直接输出本次 Change 的精确 Gitiles revision 地址
+g2c change gitiles-url 13471
+```
+
+两条命令加 `--json` 可取得完整字段：`cloneUrl` / `cloneCommands`，以及 `gitilesUrl` / `branchGitilesUrl`。`gitilesUrl` 定位到本次 Change 的 revision；`branchGitilesUrl` 仅用于浏览分支当前代码，二者不可混用。
 
 `change list` / `change info` / `me --status` 默认只输出**友好字段**(`URL-number` / `subject` / `owner` / `repo` / `branch` / `updated` / `CR` / `Git-Change-Id` 等);要看 `labels` / `submitRequirements` 等原始结构,加 `--full`。
 
@@ -323,7 +339,7 @@ npm run dev -- auth status      # tsx 跑 src,改完即生效
 ```bash
 npm run typecheck    # tsc --noEmit
 npm run build        # tsc → dist/
-npm test             # vitest,48 个测试
+npm test             # vitest,54 个测试
 npm audit            # 依赖安全审计
 ```
 
